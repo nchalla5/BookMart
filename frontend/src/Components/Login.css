@@ -1,0 +1,93 @@
+.login {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f0f2f5;
+  }
+  
+  .sign-in-form,
+  .sign-up-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Aligns the child elements (the form fields) in the center */
+    background: white;
+    padding: 20px;
+    border-radius: 3px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .form-header {
+    margin-bottom: 20px;
+    text-align: center; /* Centers the header text */
+  }
+  
+  input {
+    font-size: 16px;
+    display: block;
+    width: 100%; /* Makes input take the full width of the form container */
+    max-width: 300px; /* Sets a max-width to avoid overly wide input fields */
+    margin-bottom: 10px;
+    padding: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    align-self: center;
+  }
+
+  button {
+    width: 90%; /* Adjust the width as needed */
+    max-width: 300px; /* Set the maximum width of the button to match input fields */
+    padding: 14px;
+    margin: 10px auto 0 auto; /* Centers the button */
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+  }
+  
+  button:hover {
+    background-color: #0056b3;
+  }
+  
+  .toggle-form {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: #007bff;
+    cursor: pointer;
+  }
+  
+  .toggle-form:hover {
+    text-decoration: underline;
+  }
+
+  .terms {
+    display: flex;
+    align-items: center; /* This aligns the checkbox and label vertically */
+    margin-top: 10px; /* Adds some space above the terms and conditions */
+  }
+  
+  .checkbox {
+    margin-right: 5px; /* Adds some space between the checkbox and the label */
+  }
+  
+  .linkButton{
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: #007bff;
+    cursor: pointer;
+  }
+  
+  /* .forgot-password-container {
+    text-align: center; 
+    width: 100%; 
+    margin-top: 1rem; 
+  } */
+
+  .error-message {
+    color: red;
+    margin-bottom: 1rem;
+  }
+  
+  /* Add additional styling as needed */
+  
