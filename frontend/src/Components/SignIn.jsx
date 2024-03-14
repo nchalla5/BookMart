@@ -1,12 +1,12 @@
 import React from 'react';
 
+const endpoint ="http://localhost:8080"
 function SignInForm({ onToggle }) {
     const handleSubmit = async (event) => {
       event.preventDefault();
       const { emailOrPhone, password } = event.target.elements;
-  
       try {
-        const response = await fetch('api/login', {
+        const response = await fetch(endpoint + '/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -30,8 +30,6 @@ function SignInForm({ onToggle }) {
       }
     };
 
-
-    
   return (
     <div className="sign-in-form">
       <h2>Login Form</h2>
