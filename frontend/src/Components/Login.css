@@ -25,7 +25,7 @@
   input {
     font-size: 16px;
     display: block;
-    width: 100%; /* Makes input take the full width of the form container */
+    width: 90%; /* Makes input take the full width of the form container */
     max-width: 300px; /* Sets a max-width to avoid overly wide input fields */
     margin-bottom: 10px;
     padding: 14px;
@@ -65,6 +65,7 @@
     display: flex;
     align-items: center; /* This aligns the checkbox and label vertically */
     margin-top: 10px; /* Adds some space above the terms and conditions */
+    font-size: 0.9em;
   }
   
   .checkbox {
@@ -87,6 +88,10 @@
   .error-message {
     color: red;
     margin-bottom: 1rem;
+  }
+
+  p {
+    font-size: 0.9em;
   }
   
   /* Add additional styling as needed */
