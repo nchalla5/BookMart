@@ -19,5 +19,4 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Login attempt with Email/Phone: %s, Password: %s", creds.EmailOrPhone, creds.Password)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
-
 }
