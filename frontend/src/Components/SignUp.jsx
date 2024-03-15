@@ -1,6 +1,7 @@
 import React from 'react';
 import { useState } from 'react';
 
+const endpoint ="http://localhost:8080"
 function SignUpForm({ onToggle }) {
     const [error, setError] = useState('');
   
@@ -17,7 +18,7 @@ function SignUpForm({ onToggle }) {
       }
   
       try {
-        const response = await fetch('api/signup', {
+        const response = await fetch(endpoint + '/signup', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

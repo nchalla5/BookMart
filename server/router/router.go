@@ -12,5 +12,6 @@ func InitializeRouter() *mux.Router {
 	r.HandleFunc("/login", middleware.Login).Methods("POST")
 	//r.HandleFunc("/api/products", ProductsHandler).Methods("GET")
 	// Add more routes as needed
+	r.HandleFunc("/signup", middleware.Signup).Methods("POST")
 	return r
 }
