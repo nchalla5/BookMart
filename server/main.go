@@ -2,6 +2,7 @@ package main
 
 import (
 	//"fmt"
+
 	"github.com/gorilla/handlers"
 	// "github.com/gorilla/mux"
 	"log"
@@ -12,6 +13,7 @@ import (
 
 func main() {
 	// r := router.Router()
+
 	r := router.InitializeRouter()
 	log.Println("Starting server on :8080")
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
