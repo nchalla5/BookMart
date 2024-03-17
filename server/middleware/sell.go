@@ -26,6 +26,15 @@ func init() {
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("No .env file found")
 	}
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(os.Getenv("AWS_REGION")),
+	)
+	if err != nil {
+		panic("unable to load SDK config, " + err.Error())
+	}
+
+	s3Client = s3.NewFromConfig(cfg)
 	// rand.Seed(time.Now().UnixNano())
 }
 
@@ -80,10 +89,10 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 
 	svc := dynamodb.NewFromConfig(cfg)
 
-	s3Client := s3.NewFromConfig(cfg)
+	//s3Client := s3.NewFromConfig(cfg)
 
 	if product.Image != "" {
-		s3URL, err := uploadImageToS3(s3Client, product.Image)
+		s3URL, err := uploadImageToS3(product.Image)
 		if err != nil {
 			http.Error(w, "Failed to upload image to S3: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -162,8 +171,7 @@ func isProductIDUnique(svc *dynamodb.Client, productID string, tableName string)
 	return result.Item == nil, nil // If Item is nil, ProductID is unique
 }
 
-func uploadImageToS3(s3Client *s3.Client, imageURL string) (string, error) {
-	// Fetch the image from the URL
+func uploadImageToS3(imageURL string) (string, error) {
 	resp, err := http.Get(imageURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch image: %w", err)
@@ -171,29 +179,35 @@ func uploadImageToS3(s3Client *s3.Client, imageURL string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch image, status code: %d", resp.StatusCode)
+		return "", fmt.Errorf("received non-200 response code: %d", resp.StatusCode)
 	}
 
-	// Read the image body
 	buf := bytes.NewBuffer(nil)
 	if _, err := io.Copy(buf, resp.Body); err != nil {
 		return "", fmt.Errorf("failed to read image body: %w", err)
 	}
 
-	// Generate a unique key for the image in S3
 	imageKey := fmt.Sprintf("product-images/%s-%d", uuid.New().String(), time.Now().Unix())
 
-	// Upload to S3
 	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:      aws.String(os.Getenv("AWS_BUCKET")),
 		Key:         aws.String(imageKey),
 		Body:        bytes.NewReader(buf.Bytes()),
 		ContentType: aws.String(http.DetectContentType(buf.Bytes())),
-		// Removed ACL parameter
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload image to S3: %w", err)
 	}
 
-	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), imageKey), nil
+	// Generate a signed URL for the uploaded image
+	presignClient := s3.NewPresignClient(s3Client)
+	presignedReq, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String(os.Getenv("AWS_BUCKET")),
+		Key:    aws.String(imageKey),
+	}, s3.WithPresignExpires(24*time.Hour)) // Adjust the expiration time as needed
+	if err != nil {
+		return "", fmt.Errorf("failed to presign URL for S3 object: %w", err)
+	}
+	//fmt.Println(presignedReq.URL)
+	return presignedReq.URL, nil
 }
