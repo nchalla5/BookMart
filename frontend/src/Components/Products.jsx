@@ -83,7 +83,7 @@ return (
             <p className="product-cost">${product.cost}</p>
             <p className="product-location">{product.location}</p>
             <p className="product-description">{product.description}</p>
-            {/* Buy button if needed */}
+            <button className="buy-button" onClick={() => handleBuyClick(product.productId)}>Buy</button>
           </div>
         </Link>
       ))}

@@ -4,6 +4,12 @@ import './ProductDetails.css'; // Make sure to create this CSS file for styling
 
 const endpoint = "http://localhost:8080";
 
+const handleBuyClick = (productId) => {
+    // Placeholder for future buy functionality
+    console.log(`Buy button clicked for product ID: ${productId}`);
+    // Here you would typically make an API call to your buy endpoint, passing the productId
+  };
+
 function ProductDetails() {
   const [productDetails, setProductDetails] = useState(null);
   const { id } = useParams();
@@ -47,6 +53,7 @@ function ProductDetails() {
         <p className="product-location">{productDetails.location}</p>
         <p className="product-description">{productDetails.description}</p>
         {/* Include Buy button or other details as needed */}
+        <button className="buy-button" onClick={() => handleBuyClick(productDetails.productId)}>Buy</button>
       </div>
     </div>
   </div>
