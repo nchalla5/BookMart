@@ -1,15 +1,21 @@
 package models
 
 import (
-	"github.com/golang-jwt/jwt"
+	"github.com/dgrijalva/jwt-go"
 )
 
 type CredsStruct struct {
-	EmailOrPhone string `json:"emailOrPhone"`
-	Password     string `json:"password"`
+	Email    string `json:"emailOrPhone"`
+	Password string `json:"password"`
 }
 
-type DetailsStruct struct {
+type Claims struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	jwt.StandardClaims
+}
+
+type UserDetails struct {
 	Email           string `json:"email"`
 	Name            string `json:"name"`
 	Password        string `json:"password"`
@@ -34,9 +40,4 @@ type ProductsApiResponse struct {
 	Message string      `json:"message,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
-}
-
-type Claims struct {
-	MemberID string `json:"member_id"`
-	jwt.StandardClaims
 }
