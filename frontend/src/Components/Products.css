@@ -11,6 +11,19 @@
     align-items: center;
     margin-bottom: 2rem;
   }
+
+  .logout-button {
+    padding: 0.5rem; /* Reduced horizontal padding */
+    width: 100px; /* Adjust spacing as needed */
+    background-color: #f44336; /* Red color for the logout button */
+    color: white;
+    border: none;
+    cursor: pointer;
+    position: fixed;
+    top: 50px;
+    right: 50px;
+    text-align: center;
+}
   
   .sell-button {
     padding: 0.5rem; /* Reduced horizontal padding */

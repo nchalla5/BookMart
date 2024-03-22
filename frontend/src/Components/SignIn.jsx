@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const endpoint ="http://localhost:8080"
 function SignInForm({ onToggle }) {
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
     const handleSubmit = async (event) => {
       event.preventDefault();
+      setError('');
       const { emailOrPhone, password } = event.target.elements;
       try {
         const response = await fetch(endpoint + '/login', {
@@ -18,11 +22,19 @@ function SignInForm({ onToggle }) {
         });
   
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          // throw new Error(`HTTP error! status: ${response.status}`);
+          if (response.status === 401) {
+            setError('Username and/or Password are invalid.');
+          } else {
+              // Handle other statuses or a general error message
+              setError(`An error occurred: ${response.status}. Please try again.`);
+          }
+          return;
         }
-  
         const data = await response.json();
         console.log(data);
+        localStorage.setItem('token', data.token);
+        navigate('/home');
         // Handle the response data here. For example, you might save the token in localStorage
       } catch (error) {
         console.error('There was a problem with the fetch operation:', error);
@@ -33,6 +45,7 @@ function SignInForm({ onToggle }) {
   return (
     <div className="sign-in-form">
       <h2>Login Form</h2>
+      {error && <div className="error-message">{error}</div>}
       <form onSubmit={handleSubmit}>
         <input type="text" name="emailOrPhone" placeholder="Email or Phone" required />
         <input type="password" name="password" placeholder="Password" required />

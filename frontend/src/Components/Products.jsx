@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom'; 
-import './Products.css'; // Ensure this file exists and has the content from below
+import './Products.css';
+import { useNavigate } from 'react-router-dom';
 
 const endpoint = "http://localhost:8080";
 
 function Products() {
   const [products, setProducts] = useState([]);
-
+  const navigate = useNavigate();
+  
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/'); // Redirect to login if token not found
+      return;
+    }
     const fetchProducts = async () => {
       try {
         const response = await fetch(endpoint + '/products', {
@@ -42,6 +49,11 @@ function Products() {
     // Here you would typically make an API call to your buy endpoint, passing the productId
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token'); // Remove the token
+    navigate('/'); // Redirect to login page
+};
+
 //   return (
 //     <div className="products-page">
 //       <div className="products-header">
@@ -73,6 +85,7 @@ return (
     <div className="products-header">
     <h1>Products</h1>
     <button className="sell-button" onClick={handleSellClick}>Sell</button>
+    <button className="logout-button" onClick={handleLogout}>Logout</button>
     </div>
     <div className="products-container">
       {products.map((product) => (

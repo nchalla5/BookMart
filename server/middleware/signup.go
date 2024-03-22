@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -30,7 +29,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	details.Password = string(hashedPassword)
-	fmt.Println("Hashed Password in SignIn: ", details.Password)
+	//fmt.Println("Hashed Password in SignIn: ", details.Password)
 	// log.Printf("Signup attempt with Email: %s, Name: %s, Password: %s", details.Email, details.Name, hashedPassword)
 	err = godotenv.Load()
 	if err != nil {
@@ -43,6 +42,20 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Unable to load SDK config, %v", err)
 	}
 	svc := dynamodb.NewFromConfig(cfg)
+	result, err := svc.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		TableName: aws.String("Credentials"),
+		Key: map[string]types.AttributeValue{
+			"UserName": &types.AttributeValueMemberS{Value: details.Email},
+		},
+	})
+	if err != nil {
+        log.Printf("Failed to query user: %v", err)
+        http.Error(w, "Database query failed", http.StatusInternalServerError)
+        return
+    } else if result.Item != nil {
+        http.Error(w, "User already exists", http.StatusConflict)
+        return
+    }
 	insertCredential(svc, details)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "success"})
@@ -62,5 +75,5 @@ func insertCredential(svc *dynamodb.Client, details models.UserDetails) {
 		log.Fatalf("Failed to insert data, %v", err)
 	}
 
-	fmt.Println("Successfully inserted credential")
+	// fmt.Println("Successfully inserted credential")
 }

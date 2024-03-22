@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"time"
 
@@ -25,7 +24,7 @@ import (
 )
 
 func Login(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Entered Login Page")
+	//fmt.Println("Entered Login Page")
 	//w.Write([]byte("Welcome to the Login Page"))
 	var creds models.CredsStruct
 	err := json.NewDecoder(r.Body).Decode(&creds)
@@ -43,7 +42,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("Unable to load SDK config, %v", err)
 	}
-	fmt.Println("Starting Dynamo DB")
+	//fmt.Println("Starting Dynamo DB")
 	svc := dynamodb.NewFromConfig(cfg)
 	// insertCredential(svc, creds.EmailOrPhone, creds.Password)
 	result, err := svc.GetItem(context.TODO(), &dynamodb.GetItemInput{
@@ -70,17 +69,17 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	if result.Item == nil {
 		http.Error(w, "User not found", http.StatusUnauthorized)
-		fmt.Println("User not found")
+		//fmt.Println("User not found")
 		return
 	}
 	storedPassword := result.Item["Password"].(*types.AttributeValueMemberS).Value
-	fmt.Println("Hashed Password in SignIn: ", result.Item["Password"])
+	//fmt.Println("Hashed Password in SignIn: ", result.Item["Password"])
 	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(creds.Password))
 	if err != nil {
 		http.Error(w, "Invalid login credentials", http.StatusUnauthorized)
 		return
 	}
-	fmt.Println("Encrypted Password")
+	//fmt.Println("Encrypted Password")
 	expirationTime := time.Now().Add(1 * time.Hour)
 	claims := models.Claims{
 		Email: creds.Email,
@@ -95,10 +94,10 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 
-		fmt.Println("Failed to generate token ", err)
+		//fmt.Println("Failed to generate token ", err)
 		return
 	}
-	fmt.Println("Token String in SignIn page: ", tokenString)
+	//fmt.Println("Token String in SignIn page: ", tokenString)s
 	//log.Printf("Login attempt with Email/Phone: %s, Password: %s", creds.EmailOrPhone, creds.Password)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
