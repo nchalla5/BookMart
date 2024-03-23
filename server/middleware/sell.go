@@ -199,15 +199,18 @@ func uploadImageToS3(imageURL string) (string, error) {
 		return "", fmt.Errorf("failed to upload image to S3: %w", err)
 	}
 
-	// Generate a signed URL for the uploaded image
-	presignClient := s3.NewPresignClient(s3Client)
-	presignedReq, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(os.Getenv("AWS_BUCKET")),
-		Key:    aws.String(imageKey),
-	}, s3.WithPresignExpires(24*time.Hour)) // Adjust the expiration time as needed
-	if err != nil {
-		return "", fmt.Errorf("failed to presign URL for S3 object: %w", err)
-	}
-	//fmt.Println(presignedReq.URL)
-	return presignedReq.URL, nil
+	// Return the direct S3 URL instead of a signed URL
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), imageKey), nil
+
+	// // Generate a signed URL for the uploaded image
+	// presignClient := s3.NewPresignClient(s3Client)
+	// presignedReq, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+	// 	Bucket: aws.String(os.Getenv("AWS_BUCKET")),
+	// 	Key:    aws.String(imageKey),
+	// }, s3.WithPresignExpires(24*time.Hour)) // Adjust the expiration time as needed
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to presign URL for S3 object: %w", err)
+	// }
+	// //fmt.Println(presignedReq.URL)
+	// return presignedReq.URL, nil
 }
