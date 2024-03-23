@@ -38,10 +38,15 @@ function Products() {
     fetchProducts();
   }, []);
 
+  // const handleSellClick = () => {
+  //   console.log('Sell button clicked');
+  //   // Placeholder for future functionality
+  // };
   const handleSellClick = () => {
-    console.log('Sell button clicked');
-    // Placeholder for future functionality
+    navigate('/sell'); 
+    console.log('Sell button clicked');// This should match the path you define for the SellProductForm in your router
   };
+  
 
   const handleBuyClick = (productId) => {
     // Placeholder for future buy functionality
