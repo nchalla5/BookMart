@@ -18,13 +18,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-<<<<<<< HEAD
 	"github.com/dgrijalva/jwt-go"
-
-	// "github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"github.com/nchalla5/react-go-app/constants"
 	"github.com/nchalla5/react-go-app/constants"
 	"github.com/nchalla5/react-go-app/models"
 )
@@ -101,15 +97,6 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	if product.ProductID == "" { // Check if ProductID is empty
 		product.ProductID = uuid.New().String()[:5] // Generate a new UUID as a string for ProductID
 	}
-
-	email, err := getUsernameFromToken(r)
-	if err != nil {
-		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
-		return
-	}
-
-	product.Seller = email
-	product.Status = string(constants.Available)
 
 	email, err := getUsernameFromToken(r)
 	if err != nil {
@@ -285,7 +272,6 @@ func uploadImageFromURL(imageURL string) (string, error) {
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), uniqueFileName), nil
 }
 
-
 func validatetoken(r *http.Request) error {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -302,7 +288,6 @@ func validatetoken(r *http.Request) error {
 	})
 
 	if err != nil {
-
 
 		return err
 	}
