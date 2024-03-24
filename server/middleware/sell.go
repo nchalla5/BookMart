@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -17,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/nchalla5/react-go-app/models"
@@ -44,7 +46,7 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	err := validateToken(r)
+	err := validatetoken(r)
 	if err != nil {
 		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		return
@@ -170,18 +172,18 @@ func extractProductFromForm(r *http.Request) models.Product {
 	}
 }
 
-func handleMultipartImageUpload(r *http.Request, product *models.Product) {
-	file, handler, err := r.FormFile("image")
-	if err == nil {
-		defer file.Close()
-		s3URL, err := uploadImageToS3(file, handler.Filename)
-		if err != nil {
-			fmt.Printf("Failed to upload image to S3: %v\n", err)
-			return
-		}
-		product.Image = s3URL
-	}
-}
+// func handleMultipartImageUpload(r *http.Request, product *models.Product) {
+// 	file, handler, err := r.FormFile("image")
+// 	if err == nil {
+// 		defer file.Close()
+// 		s3URL, err := uploadImageToS3(file, handler.Filename)
+// 		if err != nil {
+// 			fmt.Printf("Failed to upload image to S3: %v\n", err)
+// 			return
+// 		}
+// 		product.Image = s3URL
+// 	}
+// }
 
 func isProductIDUnique(svc *dynamodb.Client, productID string, tableName string) (bool, error) {
 	key, err := attributevalue.MarshalMap(map[string]string{"ProductID": productID})
@@ -258,4 +260,31 @@ func uploadImageFromURL(imageURL string) (string, error) {
 	}
 
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), uniqueFileName), nil
+}
+
+func validatetoken(r *http.Request) error {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return errors.New("authorization header is required")
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Make sure that the token method conform to "SigningMethodHMAC"
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return []byte(os.Getenv("JWT_KEY")), nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if !token.Valid {
+		return errors.New("invalid token")
+	}
+
+	return nil
 }

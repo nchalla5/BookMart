@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './SellProduct.css';
-import { jwtDecode } from 'jwt-decode';
+// import { jwtDecode } from 'jwt-decode';
 import Swal from 'sweetalert2';
 
 const SellProduct = () => {
@@ -54,7 +54,7 @@ try {
     method: 'POST',
     body: formData,
     headers: {
-      'Content-Type': 'application/json',
+      // 'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     }
     });
@@ -78,9 +78,19 @@ try {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
     }
+    Swal.fire({
+      title: 'Success!',
+      text: 'Successfully added the product for sale',
+      icon: 'success',
+      confirmButtonText: 'OK'
+  }).then((result) => {
+      if (result.isConfirmed) {
+        navigate('/home');// Redirect to login when OK is clicked
+      }
+  });
 
     // Assuming you want to do something upon successfully adding a product
-    navigate('/home'); // Redirect to products page
+     // Redirect to products page
 } catch (error) {
     console.error('There was an error selling the product:', error);
 }
