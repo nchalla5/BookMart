@@ -324,6 +324,5 @@ func getUsernameFromToken(r *http.Request) (string, error) {
 		return "", errors.New("invalid token")
 	}
 
-	return "", nil
-
+	return claims.Email, nil
 }
