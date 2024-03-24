@@ -6,18 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"github.com/nchalla5/react-go-app/models" // Adjust this import path as necessary
+	"github.com/nchalla5/react-go-app/models"
 )
 
 var s3Client *s3.Client
@@ -35,19 +37,7 @@ func init() {
 	}
 
 	s3Client = s3.NewFromConfig(cfg)
-	// rand.Seed(time.Now().UnixNano())
 }
-
-// generateRandomString generates a random string of n letters.
-// func generateRandomString(n int) string {
-// 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-// 	s := make([]rune, n)
-// 	for i := range s {
-// 		s[i] = letters[rand.Intn(len(letters))]
-// 	}
-// 	return string(s)
-// }
 
 func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -55,26 +45,50 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		http.Error(w, "Error loading .env file", http.StatusInternalServerError)
-		return
-	}
-
 	var product models.Product
-	err := json.NewDecoder(r.Body).Decode(&product)
-	if err != nil {
-		http.Error(w, "Error decoding JSON: "+err.Error(), http.StatusBadRequest)
+	contentType := r.Header.Get("Content-Type")
+
+	// Handling multipart/form-data for direct file uploads
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB
+			http.Error(w, "Error parsing multipart form: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		product = extractProductFromForm(r)
+
+		file, handler, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+			s3URL, err := uploadImageToS3(file, handler.Filename)
+			if err != nil {
+				http.Error(w, "Failed to upload image to S3: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			product.Image = s3URL
+		}
+	} else if strings.HasPrefix(contentType, "application/json") {
+		// Handling application/json for image URLs and other data
+		if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
+			http.Error(w, "Error decoding JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if product.Image != "" {
+			s3URL, err := uploadImageFromURL(product.Image)
+			if err != nil {
+				http.Error(w, "Failed to upload image from URL: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			product.Image = s3URL
+		}
+	} else {
+		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
 		return
 	}
 
 	if product.ProductID == "" { // Check if ProductID is empty
 		product.ProductID = uuid.New().String()[:5] // Generate a new UUID as a string for ProductID
 	}
-
-	// if product.ProductID == "" {
-	// 	product.ProductID = generateRandomString(5) // Generates a random 5-letter string
-	// }
 
 	// Initialize AWS configuration
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
@@ -91,14 +105,14 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 
 	//s3Client := s3.NewFromConfig(cfg)
 
-	if product.Image != "" {
-		s3URL, err := uploadImageToS3(product.Image)
-		if err != nil {
-			http.Error(w, "Failed to upload image to S3: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		product.Image = s3URL
-	}
+	// if product.Image != "" {
+	// 	s3URL, err := uploadImageToS3(product.Image)
+	// 	if err != nil {
+	// 		http.Error(w, "Failed to upload image to S3: "+err.Error(), http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	product.Image = s3URL
+	// }
 
 	unique, err := isProductIDUnique(svc, product.ProductID, "Products")
 	if err != nil {
@@ -138,18 +152,30 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
+}
 
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusCreated) // 201 Created status code
+func extractProductFromForm(r *http.Request) models.Product {
+	return models.Product{
+		ProductID:   r.FormValue("productId"),
+		Product:     r.FormValue("product"),
+		Title:       r.FormValue("title"),
+		Cost:        r.FormValue("cost"),
+		Location:    r.FormValue("location"),
+		Description: r.FormValue("description"),
+	}
+}
 
-	// // Prepare and send the response body
-	// response := map[string]interface{}{
-	// 	"message": "Product created successfully",
-	// 	"product": product,
-	// }
-	// json.NewEncoder(w).Encode(response)
-	// w.WriteHeader(http.StatusCreated)
-	// json.NewEncoder(w).Encode(product)
+func handleMultipartImageUpload(r *http.Request, product *models.Product) {
+	file, handler, err := r.FormFile("image")
+	if err == nil {
+		defer file.Close()
+		s3URL, err := uploadImageToS3(file, handler.Filename)
+		if err != nil {
+			fmt.Printf("Failed to upload image to S3: %v\n", err)
+			return
+		}
+		product.Image = s3URL
+	}
 }
 
 func isProductIDUnique(svc *dynamodb.Client, productID string, tableName string) (bool, error) {
@@ -171,46 +197,60 @@ func isProductIDUnique(svc *dynamodb.Client, productID string, tableName string)
 	return result.Item == nil, nil // If Item is nil, ProductID is unique
 }
 
-func uploadImageToS3(imageURL string) (string, error) {
+func uploadImageToS3(file multipart.File, filename string) (string, error) {
+	// Create a buffer to store the file
+	buffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buffer, file); err != nil {
+		return "", fmt.Errorf("failed to read file buffer: %w", err)
+	}
+
+	// Generate a unique file name for S3 to prevent name collisions
+	uniqueFileName := fmt.Sprintf("product-images/%s-%d-%s", uuid.New().String(), time.Now().Unix(), filename)
+
+	// Upload the file to S3
+	_, err := s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket:      aws.String(os.Getenv("AWS_BUCKET")),
+		Key:         aws.String(uniqueFileName),
+		Body:        bytes.NewReader(buffer.Bytes()),
+		ContentType: aws.String("image/jpeg"), // You might need to detect the content type from the file header
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to upload file to S3: %w", err)
+	}
+
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), uniqueFileName), nil
+}
+
+func uploadImageFromURL(imageURL string) (string, error) {
 	resp, err := http.Get(imageURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch image: %w", err)
+		return "", fmt.Errorf("failed to download image from URL: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("received non-200 response code: %d", resp.StatusCode)
-	}
-
-	buf := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buf, resp.Body); err != nil {
+	// Read the downloaded image into a buffer
+	buffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buffer, resp.Body); err != nil {
 		return "", fmt.Errorf("failed to read image body: %w", err)
 	}
 
-	imageKey := fmt.Sprintf("product-images/%s-%d", uuid.New().String(), time.Now().Unix())
+	// Extract filename from URL
+	segments := strings.Split(imageURL, "/")
+	filename := segments[len(segments)-1]
 
+	// Generate a unique file name for S3
+	uniqueFileName := fmt.Sprintf("product-images/%s-%d-%s", uuid.New().String(), time.Now().Unix(), filename)
+
+	// Upload the image to S3
 	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:      aws.String(os.Getenv("AWS_BUCKET")),
-		Key:         aws.String(imageKey),
-		Body:        bytes.NewReader(buf.Bytes()),
-		ContentType: aws.String(http.DetectContentType(buf.Bytes())),
+		Key:         aws.String(uniqueFileName),
+		Body:        bytes.NewReader(buffer.Bytes()),
+		ContentType: aws.String(http.DetectContentType(buffer.Bytes())),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload image to S3: %w", err)
 	}
 
-	// Return the direct S3 URL instead of a signed URL
-	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), imageKey), nil
-
-	// // Generate a signed URL for the uploaded image
-	// presignClient := s3.NewPresignClient(s3Client)
-	// presignedReq, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
-	// 	Bucket: aws.String(os.Getenv("AWS_BUCKET")),
-	// 	Key:    aws.String(imageKey),
-	// }, s3.WithPresignExpires(24*time.Hour)) // Adjust the expiration time as needed
-	// if err != nil {
-	// 	return "", fmt.Errorf("failed to presign URL for S3 object: %w", err)
-	// }
-	// //fmt.Println(presignedReq.URL)
-	// return presignedReq.URL, nil
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), uniqueFileName), nil
 }
