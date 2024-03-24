@@ -18,6 +18,7 @@ function ProductDetails() {
   const { id } = useParams();
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
+  
 
   useEffect(() => {
     const fetchProductDetails = async () => {
@@ -56,6 +57,10 @@ function ProductDetails() {
         console.error('There was a problem with the fetch operation:', error);
       }
     };
+    if (!token) {
+      navigate('/'); // Redirect to login if token not found
+      return;
+    }
 
     fetchProductDetails();
   }, [id]); // Only re-run the effect if the ID changes

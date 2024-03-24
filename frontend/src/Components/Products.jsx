@@ -14,10 +14,10 @@ function Products() {
   
   useEffect(() => {
     const token = localStorage.getItem('token');
-    // if (!token) {
-    //   navigate('/'); // Redirect to login if token not found
-    //   return;
-    // }
+    if (!token) {
+      navigate('/'); // Redirect to login if token not found
+      return;
+    }
     const decodedToken = jwtDecode(token);
     console.log(decodedToken);
     const fetchProducts = async () => {

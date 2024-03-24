@@ -28,14 +28,11 @@ func extractKeyFromURL(url string) string {
 
 // ListProductsHandler displays all products available in the Products database.
 func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Entered API")
 	err := validateToken(r)
-	fmt.Println("validaet Token executed")
 	if err != nil {
 		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
-	fmt.Println("Entered API 2")
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(os.Getenv("AWS_REGION")),
 	)
@@ -143,12 +140,10 @@ func generateSignedURL(s3Key string) (string, error) {
 }
 
 func validateToken(r *http.Request) error {
-	fmt.Println("Check1")
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return errors.New("authorization header is required")
 	}
-	fmt.Println("Check2: ", authHeader)
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -159,12 +154,10 @@ func validateToken(r *http.Request) error {
 
 		return []byte(os.Getenv("JWT_KEY")), nil
 	})
-	fmt.Println("Check3")
 
 	if err != nil {
 		return err
 	}
-	fmt.Println("Check4")
 
 	if !token.Valid {
 		return errors.New("invalid token")
