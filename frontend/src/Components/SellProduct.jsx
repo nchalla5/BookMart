@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import './SellProduct.css';
 
 const SellProduct = () => {
 const [product, setProduct] = useState({
@@ -24,6 +25,11 @@ setProduct({
     ...product,
     image: e.target.files[0],
 });
+};
+
+const handleLogout = () => {
+    localStorage.removeItem('token'); // Remove the token
+    navigate('/'); // Redirect to login page
 };
 
 const endpoint = "http://localhost:8080";
@@ -55,16 +61,24 @@ try {
 };
 
 return (
-<form onSubmit={handleSubmit}>
-    <input
-    type="text"
-    name="title"
-    placeholder="Title"
-    value={product.title}
-    onChange={handleChange}
-    required
-    />
-    <input
+     <div className="sell-product-container">
+       <header className="sell-header">
+      <h2>Sell Your Product</h2>
+      <div className="top-nav">
+        <Link to="/home" className="nav-link">Products</Link>
+        <button onClick={handleLogout} className="logout-button">Logout</button>
+      </div>
+    </header>
+      <form onSubmit={handleSubmit} className="sell-form">
+        <input
+          type="text"
+          name="title"
+          placeholder="Title"
+          value={product.title}
+          onChange={handleChange}
+          required
+        />
+         <input
     type="text"
     name="cost"
     placeholder="Cost"
@@ -95,7 +109,8 @@ return (
     />
     <button type="submit">Add Product</button>
 </form>
-);
+</div>
+  );
 };
 
 export default SellProduct;
