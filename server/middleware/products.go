@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/nchalla5/react-go-app/models"
 )
@@ -26,6 +28,14 @@ func extractKeyFromURL(url string) string {
 
 // ListProductsHandler displays all products available in the Products database.
 func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Entered API")
+	err := validateToken(r)
+	fmt.Println("validaet Token executed")
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+	fmt.Println("Entered API 2")
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(os.Getenv("AWS_REGION")),
 	)
@@ -67,6 +77,11 @@ func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetProductHandler displays single product details based on id.
 func GetProductHandler(w http.ResponseWriter, r *http.Request) {
+	err := validateToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
 	vars := mux.Vars(r)
 	productID := vars["id"]
 
@@ -125,4 +140,35 @@ func generateSignedURL(s3Key string) (string, error) {
 	}
 
 	return presignedReq.URL, nil
+}
+
+func validateToken(r *http.Request) error {
+	fmt.Println("Check1")
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return errors.New("authorization header is required")
+	}
+	fmt.Println("Check2: ", authHeader)
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Make sure that the token method conform to "SigningMethodHMAC"
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return []byte(os.Getenv("JWT_KEY")), nil
+	})
+	fmt.Println("Check3")
+
+	if err != nil {
+		return err
+	}
+	fmt.Println("Check4")
+
+	if !token.Valid {
+		return errors.New("invalid token")
+	}
+
+	return nil
 }

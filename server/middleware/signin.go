@@ -80,7 +80,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//fmt.Println("Encrypted Password")
-	expirationTime := time.Now().Add(1 * time.Hour)
+	expirationTime := time.Now().Add(1 * time.Minute)
 	claims := models.Claims{
 		Email: creds.Email,
 		Name:  result.Item["Name"].(*types.AttributeValueMemberS).Value,

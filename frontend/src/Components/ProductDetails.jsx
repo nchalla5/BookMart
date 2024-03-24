@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import './ProductDetails.css'; // Make sure to create this CSS file for styling
+import './ProductDetails.css';
+import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
+import Swal from 'sweetalert2';
 
 const endpoint = "http://localhost:8080";
 
@@ -13,6 +16,8 @@ const handleBuyClick = (productId) => {
 function ProductDetails() {
   const [productDetails, setProductDetails] = useState(null);
   const { id } = useParams();
+  const token = localStorage.getItem('token');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProductDetails = async () => {
@@ -21,11 +26,28 @@ function ProductDetails() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           }
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          if (response.status === 401) {
+            Swal.fire({
+              title: 'Session Expired',
+              text: 'Please login again to continue.',
+              icon: 'warning',
+              confirmButtonText: 'OK'
+            }).then((result) => {
+              if (result.isConfirmed) {
+                localStorage.removeItem('token'); // Optional: clear token
+                navigate('/'); // Redirect to login when OK is clicked
+              }
+            });
+          
+          }
+          else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
         }
 
         const data = await response.json();
