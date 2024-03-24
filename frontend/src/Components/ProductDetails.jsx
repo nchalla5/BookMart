@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import './ProductDetails.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import Swal from 'sweetalert2';
 
@@ -73,6 +73,9 @@ function ProductDetails() {
   return (
     <div className="product-details-page">
     <h1 className="product-title">{productDetails.title}</h1> {/* Title at the top */}
+    <div className="top-nav">
+        <Link to="/home" className="nav-link">Home</Link>
+    </div>
     <div className="product-content"> {/* Flex container for image and details */}
       <img src={productDetails.image} alt={productDetails.title} className="product-image" />
       <div className="product-info">

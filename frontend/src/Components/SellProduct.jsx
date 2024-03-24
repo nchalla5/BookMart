@@ -91,7 +91,7 @@ return (
        <header className="sell-header">
       <h2>Sell Your Product</h2>
       <div className="top-nav">
-        <Link to="/home" className="nav-link">Products</Link>
+        <Link to="/home" className="nav-link">Home</Link>
         <button onClick={handleLogout} className="logout-button">Logout</button>
       </div>
     </header>
