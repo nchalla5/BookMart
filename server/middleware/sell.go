@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -17,8 +18,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
+	"github.com/nchalla5/react-go-app/constants"
 	"github.com/nchalla5/react-go-app/models"
 )
 
@@ -94,6 +97,15 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	if product.ProductID == "" { // Check if ProductID is empty
 		product.ProductID = uuid.New().String()[:5] // Generate a new UUID as a string for ProductID
 	}
+
+	email, err := getUsernameFromToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	product.Seller = email
+	product.Status = string(constants.Available)
 
 	// Initialize AWS configuration
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
@@ -258,4 +270,31 @@ func uploadImageFromURL(imageURL string) (string, error) {
 	}
 
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), uniqueFileName), nil
+}
+
+func getUsernameFromToken(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("authorization header is required")
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims := &models.Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		// Make sure that the token method conforms to "SigningMethodHMAC"
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(os.Getenv("JWT_KEY")), nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if !token.Valid {
+		return "", errors.New("invalid token")
+	}
+
+	return claims.Email, nil
 }
