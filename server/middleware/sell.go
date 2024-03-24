@@ -18,11 +18,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-<<<<<<< HEAD
 	"github.com/dgrijalva/jwt-go"
-=======
-	"github.com/golang-jwt/jwt"
->>>>>>> 9226b67f7aeae4c458719dfeb3a785d19c2de3da
+
+	// "github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/nchalla5/react-go-app/constants"
@@ -276,7 +274,6 @@ func uploadImageFromURL(imageURL string) (string, error) {
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), uniqueFileName), nil
 }
 
-
 func validatetoken(r *http.Request) error {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -289,6 +286,21 @@ func validatetoken(r *http.Request) error {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
+		return []byte(os.Getenv("JWT_KEY")), nil
+	})
+
+	if err != nil {
+
+		return err
+	}
+
+	if !token.Valid {
+		return errors.New("invalid token")
+	}
+
+	return nil
+
+}
 
 func getUsernameFromToken(r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
@@ -307,14 +319,13 @@ func getUsernameFromToken(r *http.Request) (string, error) {
 	})
 
 	if err != nil {
-
-		return err
+		return "", err
 	}
 
 	if !token.Valid {
-		return errors.New("invalid token")
+		return "", errors.New("invalid token")
 	}
 
-	return nil
+	return "", nil
 
 }
