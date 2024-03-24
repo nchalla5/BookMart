@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -214,6 +215,17 @@ func isProductIDUnique(svc *dynamodb.Client, productID string, tableName string)
 	return result.Item == nil, nil // If Item is nil, ProductID is unique
 }
 
+func getContentTypeByFileExtension(filename string) string {
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	default:
+		return "application/octet-stream" // Default or unknown file types
+	}
+}
+
 func uploadImageToS3(file multipart.File, filename string) (string, error) {
 	// Create a buffer to store the file
 	buffer := bytes.NewBuffer(nil)
@@ -224,12 +236,15 @@ func uploadImageToS3(file multipart.File, filename string) (string, error) {
 	// Generate a unique file name for S3 to prevent name collisions
 	uniqueFileName := fmt.Sprintf("product-images/%s-%d-%s", uuid.New().String(), time.Now().Unix(), filename)
 
+	// Determine the content type
+	contentType := getContentTypeByFileExtension(filename)
+
 	// Upload the file to S3
 	_, err := s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:      aws.String(os.Getenv("AWS_BUCKET")),
 		Key:         aws.String(uniqueFileName),
 		Body:        bytes.NewReader(buffer.Bytes()),
-		ContentType: aws.String("image/jpeg"), // You might need to detect the content type from the file header
+		ContentType: aws.String(contentType),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file to S3: %w", err)
