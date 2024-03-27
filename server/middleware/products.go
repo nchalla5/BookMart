@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -88,6 +90,29 @@ func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to unmarshal DynamoDB response: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	sortField := r.URL.Query().Get("sortField") // e.g., "name" or "cost"
+	sortOrder := r.URL.Query().Get("sortOrder") // e.g., "asc" or "desc"
+
+	// Sort products slice based on the sort parameters
+	switch sortField {
+	case "name":
+		sort.Slice(products, func(i, j int) bool {
+			if sortOrder == "desc" {
+				return strings.ToLower(products[i].Title) > strings.ToLower(products[j].Title)
+			}
+			return strings.ToLower(products[i].Title) < strings.ToLower(products[j].Title)
+		})
+	case "cost":
+		sort.Slice(products, func(i, j int) bool {
+			costI, _ := strconv.ParseFloat(products[i].Cost, 64)
+			costJ, _ := strconv.ParseFloat(products[j].Cost, 64)
+			if sortOrder == "desc" {
+				return costI > costJ
+			}
+			return costI < costJ
+		})
 	}
 
 	// Generate S3 signed URLs for product images
