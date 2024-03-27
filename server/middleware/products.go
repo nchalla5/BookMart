@@ -33,6 +33,7 @@ func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
+
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(os.Getenv("AWS_REGION")),
 	)
@@ -42,9 +43,41 @@ func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	svc := dynamodb.NewFromConfig(cfg)
 
-	out, err := svc.Scan(context.TODO(), &dynamodb.ScanInput{
+	scanInput := &dynamodb.ScanInput{
 		TableName: aws.String("Products"),
-	})
+	}
+
+	// Extract query parameters for filtering
+	queryParams := r.URL.Query()
+	var filterExpressions []string
+	expressionAttributeValues := map[string]types.AttributeValue{}
+	expressionAttributeNames := map[string]string{}
+
+	if searchName := queryParams.Get("searchName"); searchName != "" {
+		filterExpressions = append(filterExpressions, "contains(#T, :title)")
+		expressionAttributeValues[":title"] = &types.AttributeValueMemberS{Value: searchName}
+		expressionAttributeNames["#T"] = "Title"
+	}
+
+	if searchLocation := queryParams.Get("searchLocation"); searchLocation != "" {
+		filterExpressions = append(filterExpressions, "contains(#L, :location)")
+		expressionAttributeValues[":location"] = &types.AttributeValueMemberS{Value: searchLocation}
+		expressionAttributeNames["#L"] = "Location" // Alias for reserved keyword
+	}
+
+	if statusFilter := queryParams.Get("statusFilter"); statusFilter == "available" {
+		filterExpressions = append(filterExpressions, "#S = :status")
+		expressionAttributeValues[":status"] = &types.AttributeValueMemberS{Value: "available"}
+		expressionAttributeNames["#S"] = "Status"
+	}
+
+	if len(filterExpressions) > 0 {
+		scanInput.FilterExpression = aws.String(strings.Join(filterExpressions, " AND "))
+		scanInput.ExpressionAttributeValues = expressionAttributeValues
+		scanInput.ExpressionAttributeNames = expressionAttributeNames
+	}
+
+	out, err := svc.Scan(context.TODO(), scanInput)
 	if err != nil {
 		http.Error(w, "Failed to fetch products: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -57,6 +90,7 @@ func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate S3 signed URLs for product images
 	for i, product := range products {
 		s3Key := extractKeyFromURL(product.Image) // Implement this based on your URL structure
 		signedURL, err := generateSignedURL(s3Key)

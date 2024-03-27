@@ -84,7 +84,7 @@ function Products() {
 return (
     <div className="products-page">
     <div className="products-header">
-    <h1>Products</h1>
+    <h1>Books</h1>
     <button className="sell-button" onClick={handleSellClick}>Sell</button>
     <button className="logout-button" onClick={handleLogout}>Logout</button>
     </div>
