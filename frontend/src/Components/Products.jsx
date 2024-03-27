@@ -72,6 +72,7 @@ function Products() {
   const handleBuyClick = (productId) => {
     // Placeholder for future buy functionality
     console.log(`Buy button clicked for product ID: ${productId}`);
+    navigate(`/checkout/${productId}`); 
     // Here you would typically make an API call to your buy endpoint, passing the productId
   };
 

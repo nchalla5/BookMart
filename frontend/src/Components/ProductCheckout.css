@@ -1,0 +1,41 @@
+.check-form {
+    flex: 1; /* Allow the form to grow */
+    max-width: 30%; /* Adjusted max width for the form */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Align children (form fields) to the start of the flex container */
+    padding: 5rem;
+  }
+  
+  /* Add styles specifically for the button to ensure it aligns with form fields */
+  .check-form button {
+    padding: 10px 15px; /* Provide some padding */
+    cursor: pointer; /* Pointer cursor on hover */
+    border: none;
+    background-color: #007bff; /* Example button color */
+    color: white; /* Text color for the button */
+    border-radius: 4px; /* Rounded corners */
+    width: 100%; /* Full width to match input fields */
+    box-sizing: border-box; /* Include padding and border in the width */
+  }
+  
+  .check-card {
+    flex: 0 1 40%;
+    max-width: 50%;
+    margin-top: 4rem;
+    /* Rest of your styles */
+  }
+  
+  .check-container {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: flex-start;
+  }
+  
+  .check-image {
+    width: 500px;
+    height: 300px; 
+    object-fit: contain;
+    overflow: hidden; 
+    display: block;
+  }

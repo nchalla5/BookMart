@@ -1,25 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import './ProductDetails.css';
-
 import { useNavigate, Link } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode';
 import Swal from 'sweetalert2';
 
 const endpoint = "http://localhost:8080";
 
-const handleBuyClick = (productId) => {
-    // Placeholder for future buy functionality
-    console.log(`Buy button clicked for product ID: ${productId}`);
-    // Here you would typically make an API call to your buy endpoint, passing the productId
-  };
+
 
 function ProductDetails() {
   const [productDetails, setProductDetails] = useState(null);
   const { id } = useParams();
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
-  
+  const handleBuyClick = (productId) => {
+    // Placeholder for future buy functionality
+    navigate(`/checkout/${productId}`);
+    console.log(`Buy button clicked for product ID: ${productId}`);
+    // Here you would typically make an API call to your buy endpoint, passing the productId
+  };
 
   useEffect(() => {
     const fetchProductDetails = async () => {
