@@ -7,9 +7,11 @@
   
   .products-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 5rem;
   }
 
   .logout-button {
@@ -78,4 +80,67 @@
   margin-top: 0.5rem; /* Space above the button */
 }
 
-  
+
+/* Style for the search and sort container */
+.search-sort-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* Align children to the right */
+  gap: 0.5rem; /* Spacing between search and sort bars */
+}
+
+/* Individual search and sort bars */
+.search-bar,
+.sort-bar {
+  width: 50%;
+  display: flex;
+  gap: 0.5rem; /* Spacing between select and input */
+}
+
+/* Search input and sort select box */
+.search-bar select,
+.search-bar input,
+.sort-bar select {
+  width: 150px; /* Adjust width as needed */
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Adjust the width of the search input field specifically */
+.searchTerm {
+  flex-grow: 1; /* Let search input grow to fill available space */
+}
+
+/* Style adjustments for buttons */
+.sell-button,
+.logout-button {
+  padding: 0.5rem 1rem;
+  margin-left: 1rem; /* Ensure some spacing to the left of the button */
+}
+
+/* ... rest of your existing styles ... */
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .products-header {
+      justify-content: center;
+  }
+
+  .search-sort-bar {
+    width: 80%; /* Full width on smaller screens */
+    align-items: center; /* Center align on smaller screens */
+  }
+
+  .search-bar select,
+  .search-bar input,
+  .sort-bar select {
+      width: auto; /* Auto width on smaller screens */
+  }
+
+  .sell-button,
+  .logout-button {
+      position: static; /* Reset position for small screens */
+      margin-left: 0.5rem; /* Small margin on smaller screens */
+  }
+}
