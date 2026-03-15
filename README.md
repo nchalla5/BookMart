@@ -25,14 +25,6 @@ Book Mart is a full-stack used-book marketplace built with a Go API and a React 
   - `SellProduct`: create a new listing
   - `ProductCheckout`: shipping form and purchase flow
 
-## What Was Added To Finish The App
-
-- A local storage mode so the app can run without AWS credentials
-- File-backed persistence for users and products in `server/data/*.json`
-- Local image uploads served from `server/uploads/`
-- A real checkout route that marks products as sold and stores shipping info
-- Frontend support for sold/available state and purchase submission
-- Real setup docs and environment examples
 
 ## Run Locally
 
@@ -83,9 +75,4 @@ Set `STORAGE_MODE=aws` in `server/.env` to use the original cloud-backed flow. I
   - `Credentials`
   - `Products`
 
-## Suggested Next GitHub Improvements
 
-- Add screenshots or a short demo GIF
-- Add unit tests for local storage and handlers
-- Move hardcoded table names into config
-- Add edit/delete listing support for sellers
