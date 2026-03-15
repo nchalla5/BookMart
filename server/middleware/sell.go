@@ -4,67 +4,93 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
-	"github.com/nchalla5/react-go-app/models" // Adjust this import path as necessary
+	"github.com/nchalla5/react-go-app/constants"
+	"github.com/nchalla5/react-go-app/models"
 )
 
 var s3Client *s3.Client
 
 func init() {
-	if err := godotenv.Load(); err != nil {
-		fmt.Println("No .env file found")
+	loadEnv()
+
+	if !isAWSMode() {
+		return
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(os.Getenv("AWS_REGION")),
-	)
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
-		panic("unable to load SDK config, " + err.Error())
+		fmt.Println("unable to load SDK config, " + err.Error())
+		return
 	}
-
 	s3Client = s3.NewFromConfig(cfg)
-	// rand.Seed(time.Now().UnixNano())
 }
-
-// generateRandomString generates a random string of n letters.
-// func generateRandomString(n int) string {
-// 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-// 	s := make([]rune, n)
-// 	for i := range s {
-// 		s[i] = letters[rand.Intn(len(letters))]
-// 	}
-// 	return string(s)
-// }
 
 func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Only POST method is allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		http.Error(w, "Error loading .env file", http.StatusInternalServerError)
+	err := validatetoken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	var product models.Product
-	err := json.NewDecoder(r.Body).Decode(&product)
-	if err != nil {
-		http.Error(w, "Error decoding JSON: "+err.Error(), http.StatusBadRequest)
+	contentType := r.Header.Get("Content-Type")
+
+	// Handling multipart/form-data for direct file uploads
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB
+			http.Error(w, "Error parsing multipart form: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		product = extractProductFromForm(r)
+
+		file, handler, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+			imageURL, err := uploadImage(file, handler.Filename)
+			if err != nil {
+				http.Error(w, "Failed to upload image: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			product.Image = imageURL
+		}
+	} else if strings.HasPrefix(contentType, "application/json") {
+		// Handling application/json for image URLs and other data
+		if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
+			http.Error(w, "Error decoding JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if product.Image != "" {
+			imageURL, err := uploadImageFromURL(product.Image)
+			if err != nil {
+				http.Error(w, "Failed to upload image from URL: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			product.Image = imageURL
+		}
+	} else {
+		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
 		return
 	}
 
@@ -72,9 +98,33 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 		product.ProductID = uuid.New().String()[:5] // Generate a new UUID as a string for ProductID
 	}
 
-	// if product.ProductID == "" {
-	// 	product.ProductID = generateRandomString(5) // Generates a random 5-letter string
-	// }
+	email, err := getUsernameFromToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	product.Seller = email
+	product.Status = string(constants.Available)
+
+	if !isAWSMode() {
+		createdProduct, err := localStore.CreateProduct(product)
+		if err != nil {
+			http.Error(w, "Failed to save product: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		response := models.ProductsApiResponse{
+			Status:  "success",
+			Message: "Product created successfully",
+			Data:    createdProduct,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 
 	// Initialize AWS configuration
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
@@ -91,14 +141,14 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 
 	//s3Client := s3.NewFromConfig(cfg)
 
-	if product.Image != "" {
-		s3URL, err := uploadImageToS3(product.Image)
-		if err != nil {
-			http.Error(w, "Failed to upload image to S3: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		product.Image = s3URL
-	}
+	// if product.Image != "" {
+	// 	s3URL, err := uploadImageToS3(product.Image)
+	// 	if err != nil {
+	// 		http.Error(w, "Failed to upload image to S3: "+err.Error(), http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	product.Image = s3URL
+	// }
 
 	unique, err := isProductIDUnique(svc, product.ProductID, "Products")
 	if err != nil {
@@ -138,19 +188,31 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
-
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusCreated) // 201 Created status code
-
-	// // Prepare and send the response body
-	// response := map[string]interface{}{
-	// 	"message": "Product created successfully",
-	// 	"product": product,
-	// }
-	// json.NewEncoder(w).Encode(response)
-	// w.WriteHeader(http.StatusCreated)
-	// json.NewEncoder(w).Encode(product)
 }
+
+func extractProductFromForm(r *http.Request) models.Product {
+	return models.Product{
+		ProductID:   r.FormValue("productId"),
+		Product:     r.FormValue("product"),
+		Title:       r.FormValue("title"),
+		Cost:        r.FormValue("cost"),
+		Location:    r.FormValue("location"),
+		Description: r.FormValue("description"),
+	}
+}
+
+// func handleMultipartImageUpload(r *http.Request, product *models.Product) {
+// 	file, handler, err := r.FormFile("image")
+// 	if err == nil {
+// 		defer file.Close()
+// 		s3URL, err := uploadImageToS3(file, handler.Filename)
+// 		if err != nil {
+// 			fmt.Printf("Failed to upload image to S3: %v\n", err)
+// 			return
+// 		}
+// 		product.Image = s3URL
+// 	}
+// }
 
 func isProductIDUnique(svc *dynamodb.Client, productID string, tableName string) (bool, error) {
 	key, err := attributevalue.MarshalMap(map[string]string{"ProductID": productID})
@@ -171,43 +233,157 @@ func isProductIDUnique(svc *dynamodb.Client, productID string, tableName string)
 	return result.Item == nil, nil // If Item is nil, ProductID is unique
 }
 
-func uploadImageToS3(imageURL string) (string, error) {
+func getContentTypeByFileExtension(filename string) string {
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	default:
+		return "application/octet-stream" // Default or unknown file types
+	}
+}
+
+func uploadImageToS3(file multipart.File, filename string) (string, error) {
+	// Create a buffer to store the file
+	buffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buffer, file); err != nil {
+		return "", fmt.Errorf("failed to read file buffer: %w", err)
+	}
+
+	// Generate a unique file name for S3 to prevent name collisions
+	uniqueFileName := fmt.Sprintf("product-images/%s-%d-%s", uuid.New().String(), time.Now().Unix(), filename)
+
+	// Determine the content type
+	contentType := getContentTypeByFileExtension(filename)
+
+	// Upload the file to S3
+	_, err := s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket:      aws.String(os.Getenv("AWS_BUCKET")),
+		Key:         aws.String(uniqueFileName),
+		Body:        bytes.NewReader(buffer.Bytes()),
+		ContentType: aws.String(contentType),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to upload file to S3: %w", err)
+	}
+
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), uniqueFileName), nil
+}
+
+func uploadImage(file multipart.File, filename string) (string, error) {
+	if isAWSMode() {
+		return uploadImageToS3(file, filename)
+	}
+
+	buffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buffer, file); err != nil {
+		return "", fmt.Errorf("failed to read file buffer: %w", err)
+	}
+
+	uploadsDir := filepath.Join("uploads")
+	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create uploads directory: %w", err)
+	}
+
+	safeName := fmt.Sprintf("%s-%d%s", uuid.New().String(), time.Now().Unix(), filepath.Ext(filename))
+	targetPath := filepath.Join(uploadsDir, safeName)
+	if err := os.WriteFile(targetPath, buffer.Bytes(), 0o644); err != nil {
+		return "", fmt.Errorf("failed to save image: %w", err)
+	}
+
+	return "/uploads/" + safeName, nil
+}
+
+func uploadImageFromURL(imageURL string) (string, error) {
+	if !isAWSMode() {
+		return imageURL, nil
+	}
+
 	resp, err := http.Get(imageURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch image: %w", err)
+		return "", fmt.Errorf("failed to download image from URL: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("received non-200 response code: %d", resp.StatusCode)
-	}
-
-	buf := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buf, resp.Body); err != nil {
+	// Read the downloaded image into a buffer
+	buffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buffer, resp.Body); err != nil {
 		return "", fmt.Errorf("failed to read image body: %w", err)
 	}
 
-	imageKey := fmt.Sprintf("product-images/%s-%d", uuid.New().String(), time.Now().Unix())
+	// Extract filename from URL
+	segments := strings.Split(imageURL, "/")
+	filename := segments[len(segments)-1]
 
+	// Generate a unique file name for S3
+	uniqueFileName := fmt.Sprintf("product-images/%s-%d-%s", uuid.New().String(), time.Now().Unix(), filename)
+
+	// Upload the image to S3
 	_, err = s3Client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket:      aws.String(os.Getenv("AWS_BUCKET")),
-		Key:         aws.String(imageKey),
-		Body:        bytes.NewReader(buf.Bytes()),
-		ContentType: aws.String(http.DetectContentType(buf.Bytes())),
+		Key:         aws.String(uniqueFileName),
+		Body:        bytes.NewReader(buffer.Bytes()),
+		ContentType: aws.String(http.DetectContentType(buffer.Bytes())),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload image to S3: %w", err)
 	}
 
-	// Generate a signed URL for the uploaded image
-	presignClient := s3.NewPresignClient(s3Client)
-	presignedReq, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(os.Getenv("AWS_BUCKET")),
-		Key:    aws.String(imageKey),
-	}, s3.WithPresignExpires(24*time.Hour)) // Adjust the expiration time as needed
-	if err != nil {
-		return "", fmt.Errorf("failed to presign URL for S3 object: %w", err)
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), uniqueFileName), nil
+}
+
+func validatetoken(r *http.Request) error {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return errors.New("authorization header is required")
 	}
-	//fmt.Println(presignedReq.URL)
-	return presignedReq.URL, nil
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Make sure that the token method conform to "SigningMethodHMAC"
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(jwtSecret()), nil
+	})
+
+	if err != nil {
+
+		return err
+	}
+
+	if !token.Valid {
+		return errors.New("invalid token")
+	}
+
+	return nil
+
+}
+
+func getUsernameFromToken(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("authorization header is required")
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	claims := &models.Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		// Make sure that the token method conforms to "SigningMethodHMAC"
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(jwtSecret()), nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if !token.Valid {
+		return "", errors.New("invalid token")
+	}
+
+	return claims.Email, nil
 }

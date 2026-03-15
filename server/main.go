@@ -2,13 +2,11 @@ package main
 
 import (
 	//"fmt"
-
 	"github.com/gorilla/handlers"
 	// "github.com/gorilla/mux"
+	"github.com/nchalla5/react-go-app/router"
 	"log"
 	"net/http"
-
-	"github.com/nchalla5/react-go-app/router"
 )
 
 func main() {

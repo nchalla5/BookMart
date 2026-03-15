@@ -1,98 +1,166 @@
-.login {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background-color: #f0f2f5;
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.auth-shell {
+  width: min(1120px, 100%);
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.auth-hero,
+.auth-panel {
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: 32px;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(14px);
+}
+
+.auth-hero {
+  padding: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 680px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 243, 0.9), rgba(243, 230, 212, 0.82)),
+    radial-gradient(circle at top right, rgba(181, 123, 71, 0.15), transparent 30%);
+}
+
+.auth-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.82rem;
+  color: var(--brand);
+}
+
+.auth-hero h1 {
+  font-size: clamp(3rem, 5vw, 5.2rem);
+  max-width: 10ch;
+}
+
+.auth-copy {
+  max-width: 36rem;
+  font-size: 1.05rem;
+}
+
+.auth-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.auth-highlights span {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(140, 95, 60, 0.12);
+  color: var(--brand-deep);
+}
+
+.auth-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+}
+
+.sign-in-form,
+.sign-up-form {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 36px;
+  border-radius: 28px;
+  border: 1px solid rgba(140, 95, 60, 0.12);
+}
+
+.sign-in-form h2,
+.sign-up-form h2 {
+  font-size: 2rem;
+}
+
+.sign-in-form form,
+.sign-up-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sign-in-form button,
+.sign-up-form button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.toggle-form {
+  margin-top: 8px;
+  color: var(--brand);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.toggle-form:hover {
+  text-decoration: underline;
+}
+
+.terms {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.terms input {
+  width: auto;
+  margin: 0;
+}
+
+.error-message {
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(165, 72, 61, 0.08);
+  color: var(--danger);
+}
+
+@media (max-width: 920px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
   }
-  
+
+  .auth-hero {
+    min-height: auto;
+    padding: 36px;
+    gap: 28px;
+  }
+
+  .auth-panel {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .auth-page {
+    padding: 16px;
+  }
+
+  .auth-hero,
+  .auth-panel,
   .sign-in-form,
   .sign-up-form {
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Aligns the child elements (the form fields) in the center */
-    background: white;
-    padding: 20px;
-    border-radius: 3px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  }
-  
-  .form-header {
-    margin-bottom: 20px;
-    text-align: center; /* Centers the header text */
-  }
-  
-  input {
-    font-size: 16px;
-    display: block;
-    width: 90%; /* Makes input take the full width of the form container */
-    max-width: 300px; /* Sets a max-width to avoid overly wide input fields */
-    margin-bottom: 10px;
-    padding: 14px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    align-self: center;
+    border-radius: 24px;
   }
 
-  button {
-    width: 90%; /* Adjust the width as needed */
-    max-width: 300px; /* Set the maximum width of the button to match input fields */
-    padding: 14px;
-    margin: 10px auto 0 auto; /* Centers the button */
-    border: none;
-    border-radius: 4px;
-    background-color: #007bff;
-    color: white;
-    cursor: pointer;
+  .sign-in-form,
+  .sign-up-form {
+    padding: 24px;
   }
-  
-  button:hover {
-    background-color: #0056b3;
-  }
-  
-  .toggle-form {
-    margin-top: 10px;
-    font-size: 0.9em;
-    color: #007bff;
-    cursor: pointer;
-  }
-  
-  .toggle-form:hover {
-    text-decoration: underline;
-  }
-
-  .terms {
-    display: flex;
-    align-items: center; /* This aligns the checkbox and label vertically */
-    margin-top: 10px; /* Adds some space above the terms and conditions */
-    font-size: 0.9em;
-  }
-  
-  .checkbox {
-    margin-right: 5px; /* Adds some space between the checkbox and the label */
-  }
-  
-  .linkButton{
-    margin-top: 10px;
-    font-size: 0.9em;
-    color: #007bff;
-    cursor: pointer;
-  }
-  
-  /* .forgot-password-container {
-    text-align: center; 
-    width: 100%; 
-    margin-top: 1rem; 
-  } */
-
-  .error-message {
-    color: red;
-    margin-bottom: 1rem;
-  }
-
-  p {
-    font-size: 0.9em;
-  }
-  
-  /* Add additional styling as needed */
-  
+}
