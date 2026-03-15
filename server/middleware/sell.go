@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/nchalla5/react-go-app/constants"
 	"github.com/nchalla5/react-go-app/models"
 )
@@ -29,17 +28,17 @@ import (
 var s3Client *s3.Client
 
 func init() {
-	if err := godotenv.Load(); err != nil {
-		fmt.Println("No .env file found")
+	loadEnv()
+
+	if !isAWSMode() {
+		return
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(os.Getenv("AWS_REGION")),
-	)
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
-		panic("unable to load SDK config, " + err.Error())
+		fmt.Println("unable to load SDK config, " + err.Error())
+		return
 	}
-
 	s3Client = s3.NewFromConfig(cfg)
 }
 
@@ -68,12 +67,12 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 		file, handler, err := r.FormFile("image")
 		if err == nil {
 			defer file.Close()
-			s3URL, err := uploadImageToS3(file, handler.Filename)
+			imageURL, err := uploadImage(file, handler.Filename)
 			if err != nil {
-				http.Error(w, "Failed to upload image to S3: "+err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Failed to upload image: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			product.Image = s3URL
+			product.Image = imageURL
 		}
 	} else if strings.HasPrefix(contentType, "application/json") {
 		// Handling application/json for image URLs and other data
@@ -83,12 +82,12 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if product.Image != "" {
-			s3URL, err := uploadImageFromURL(product.Image)
+			imageURL, err := uploadImageFromURL(product.Image)
 			if err != nil {
 				http.Error(w, "Failed to upload image from URL: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			product.Image = s3URL
+			product.Image = imageURL
 		}
 	} else {
 		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
@@ -107,6 +106,25 @@ func CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 
 	product.Seller = email
 	product.Status = string(constants.Available)
+
+	if !isAWSMode() {
+		createdProduct, err := localStore.CreateProduct(product)
+		if err != nil {
+			http.Error(w, "Failed to save product: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		response := models.ProductsApiResponse{
+			Status:  "success",
+			Message: "Product created successfully",
+			Data:    createdProduct,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 
 	// Initialize AWS configuration
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
@@ -253,7 +271,35 @@ func uploadImageToS3(file multipart.File, filename string) (string, error) {
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", os.Getenv("AWS_BUCKET"), os.Getenv("AWS_REGION"), uniqueFileName), nil
 }
 
+func uploadImage(file multipart.File, filename string) (string, error) {
+	if isAWSMode() {
+		return uploadImageToS3(file, filename)
+	}
+
+	buffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buffer, file); err != nil {
+		return "", fmt.Errorf("failed to read file buffer: %w", err)
+	}
+
+	uploadsDir := filepath.Join("uploads")
+	if err := os.MkdirAll(uploadsDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create uploads directory: %w", err)
+	}
+
+	safeName := fmt.Sprintf("%s-%d%s", uuid.New().String(), time.Now().Unix(), filepath.Ext(filename))
+	targetPath := filepath.Join(uploadsDir, safeName)
+	if err := os.WriteFile(targetPath, buffer.Bytes(), 0o644); err != nil {
+		return "", fmt.Errorf("failed to save image: %w", err)
+	}
+
+	return "/uploads/" + safeName, nil
+}
+
 func uploadImageFromURL(imageURL string) (string, error) {
+	if !isAWSMode() {
+		return imageURL, nil
+	}
+
 	resp, err := http.Get(imageURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to download image from URL: %w", err)
@@ -299,7 +345,7 @@ func validatetoken(r *http.Request) error {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(os.Getenv("JWT_KEY")), nil
+		return []byte(jwtSecret()), nil
 	})
 
 	if err != nil {
@@ -328,7 +374,7 @@ func getUsernameFromToken(r *http.Request) (string, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(os.Getenv("JWT_KEY")), nil
+		return []byte(jwtSecret()), nil
 	})
 
 	if err != nil {

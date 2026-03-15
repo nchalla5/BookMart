@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import './SellProduct.css';
 // import { jwtDecode } from 'jwt-decode';
 import Swal from 'sweetalert2';
+import { apiUrl } from '../config';
 
 const SellProduct = () => {
 const [product, setProduct] = useState({
@@ -38,8 +39,6 @@ const handleLogout = () => {
     navigate('/'); // Redirect to login page
 };
 
-const endpoint = "http://localhost:8080";
-
 const handleSubmit = async (e) => {
 e.preventDefault();
 const formData = new FormData();
@@ -50,7 +49,7 @@ formData.append('location', product.location);
 formData.append('description', product.description);
 
 try {
-    const response = await fetch(`${endpoint}/create-product`, {
+    const response = await fetch(apiUrl('/create-product'), {
     method: 'POST',
     body: formData,
     headers: {
@@ -99,53 +98,69 @@ try {
 return (
      <div className="sell-product-container">
        <header className="sell-header">
-      <h2>Sell Your Product</h2>
-      <div className="top-nav">
-        <Link to="/home" className="nav-link">Home</Link>
-        <button onClick={handleLogout} className="logout-button">Logout</button>
+        <div>
+          <p className="sell-eyebrow">Create listing</p>
+          <h2>Sell a book in minutes</h2>
+          <p className="sell-subcopy">Add a clean title, clear photo, and short description so buyers trust the listing fast.</p>
+        </div>
+        <div className="top-nav">
+          <Link to="/home" className="nav-link">Home</Link>
+          <button onClick={handleLogout} className="logout-button">Logout</button>
+        </div>
+      </header>
+      <div className="sell-layout">
+        <div className="sell-aside">
+          <div className="aside-card">
+            <h3>What makes a strong listing?</h3>
+            <p>Use the exact book title, honest condition notes, and a price low enough to feel like a quick win.</p>
+          </div>
+          <div className="aside-card">
+            <h3>Suggested screenshot</h3>
+            <p>This page now works well as a portfolio shot because it shows the seller workflow and the product form in one frame.</p>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="sell-form">
+          <input
+            type="text"
+            name="title"
+            placeholder="Book title"
+            value={product.title}
+            onChange={handleChange}
+            required
+          />
+          <input
+            type="text"
+            name="cost"
+            placeholder="Price in USD"
+            value={product.cost}
+            onChange={handleChange}
+            required
+          />
+          <input
+            type="text"
+            name="location"
+            placeholder="City or neighborhood"
+            value={product.location}
+            onChange={handleChange}
+            required
+          />
+          <textarea
+            name="description"
+            placeholder="Describe the book condition, edition, and why someone should grab it."
+            value={product.description}
+            onChange={handleChange}
+            required
+          />
+          <input
+            type="file"
+            name="image"
+            onChange={handleImageChange}
+            required
+          />
+          <button type="submit">Publish Listing</button>
+        </form>
       </div>
-    </header>
-      <form onSubmit={handleSubmit} className="sell-form">
-        <input
-          type="text"
-          name="title"
-          placeholder="Title"
-          value={product.title}
-          onChange={handleChange}
-          required
-        />
-         <input
-    type="text"
-    name="cost"
-    placeholder="Cost"
-    value={product.cost}
-    onChange={handleChange}
-    required
-    />
-    <input
-    type="text"
-    name="location"
-    placeholder="Location"
-    value={product.location}
-    onChange={handleChange}
-    required
-    />
-    <textarea
-    name="description"
-    placeholder="Description"
-    value={product.description}
-    onChange={handleChange}
-    required
-    />
-    <input
-    type="file"
-    name="image"
-    onChange={handleImageChange}
-    required
-    />
-    <button type="submit">Add Product</button>
-</form>
-</div>
+    </div>
   );
 };
 

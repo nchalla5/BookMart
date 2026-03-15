@@ -20,7 +20,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
+	"github.com/nchalla5/react-go-app/constants"
 	"github.com/nchalla5/react-go-app/models"
+	"github.com/nchalla5/react-go-app/storage"
 )
 
 func extractKeyFromURL(url string) string {
@@ -33,6 +35,25 @@ func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 	err := validateToken(r)
 	if err != nil {
 		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	queryParams := r.URL.Query()
+	searchName := queryParams.Get("searchName")
+	searchLocation := queryParams.Get("searchLocation")
+	statusFilter := queryParams.Get("statusFilter")
+	sortField := queryParams.Get("sortField")
+	sortOrder := queryParams.Get("sortOrder")
+
+	if !isAWSMode() {
+		products, err := localStore.ListProducts(searchName, searchLocation, statusFilter, sortField, sortOrder)
+		if err != nil {
+			http.Error(w, "Failed to fetch products: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(products)
 		return
 	}
 
@@ -49,25 +70,23 @@ func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 		TableName: aws.String("Products"),
 	}
 
-	// Extract query parameters for filtering
-	queryParams := r.URL.Query()
 	var filterExpressions []string
 	expressionAttributeValues := map[string]types.AttributeValue{}
 	expressionAttributeNames := map[string]string{}
 
-	if searchName := queryParams.Get("searchName"); searchName != "" {
+	if searchName != "" {
 		filterExpressions = append(filterExpressions, "contains(#T, :title)")
 		expressionAttributeValues[":title"] = &types.AttributeValueMemberS{Value: searchName}
 		expressionAttributeNames["#T"] = "Title"
 	}
 
-	if searchLocation := queryParams.Get("searchLocation"); searchLocation != "" {
+	if searchLocation != "" {
 		filterExpressions = append(filterExpressions, "contains(#L, :location)")
 		expressionAttributeValues[":location"] = &types.AttributeValueMemberS{Value: searchLocation}
 		expressionAttributeNames["#L"] = "Location" // Alias for reserved keyword
 	}
 
-	if statusFilter := queryParams.Get("statusFilter"); statusFilter == "available" {
+	if statusFilter == "available" {
 		filterExpressions = append(filterExpressions, "#S = :status")
 		expressionAttributeValues[":status"] = &types.AttributeValueMemberS{Value: "available"}
 		expressionAttributeNames["#S"] = "Status"
@@ -92,28 +111,7 @@ func ListProductsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sortField := r.URL.Query().Get("sortField") // e.g., "name" or "cost"
-	sortOrder := r.URL.Query().Get("sortOrder") // e.g., "asc" or "desc"
-
-	// Sort products slice based on the sort parameters
-	switch sortField {
-	case "name":
-		sort.Slice(products, func(i, j int) bool {
-			if sortOrder == "desc" {
-				return strings.ToLower(products[i].Title) > strings.ToLower(products[j].Title)
-			}
-			return strings.ToLower(products[i].Title) < strings.ToLower(products[j].Title)
-		})
-	case "cost":
-		sort.Slice(products, func(i, j int) bool {
-			costI, _ := strconv.ParseFloat(products[i].Cost, 64)
-			costJ, _ := strconv.ParseFloat(products[j].Cost, 64)
-			if sortOrder == "desc" {
-				return costI > costJ
-			}
-			return costI < costJ
-		})
-	}
+	applySort(&products, sortField, sortOrder)
 
 	// Generate S3 signed URLs for product images
 	for i, product := range products {
@@ -140,6 +138,18 @@ func GetProductHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	vars := mux.Vars(r)
 	productID := vars["id"]
+
+	if !isAWSMode() {
+		product, err := localStore.GetProduct(productID)
+		if err != nil {
+			http.Error(w, "Product not found", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(product)
+		return
+	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(os.Getenv("AWS_REGION")),
@@ -185,6 +195,84 @@ func GetProductHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(product)
 }
 
+func PurchaseProductHandler(w http.ResponseWriter, r *http.Request) {
+	err := validateToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	productID := vars["id"]
+
+	var request models.PurchaseRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := validateShippingAddress(request.ShippingAddress); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	buyer, err := getUsernameFromToken(r)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	if !isAWSMode() {
+		product, err := localStore.PurchaseProduct(productID, buyer, request.ShippingAddress)
+		if err != nil {
+			switch err {
+			case storage.ErrProductNotFound:
+				http.Error(w, "Product not found", http.StatusNotFound)
+			case storage.ErrProductUnavailable:
+				http.Error(w, "Product is no longer available", http.StatusConflict)
+			default:
+				http.Error(w, "Failed to complete purchase", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(models.ProductsApiResponse{
+			Status:  "success",
+			Message: "Purchase completed successfully",
+			Data:    product,
+		})
+		return
+	}
+
+	product, err := fetchAWSProduct(productID)
+	if err != nil {
+		http.Error(w, "Product not found", http.StatusNotFound)
+		return
+	}
+	if product.Status != string(constants.Available) {
+		http.Error(w, "Product is no longer available", http.StatusConflict)
+		return
+	}
+
+	product.Buyer = buyer
+	product.Status = string(constants.Sold)
+	product.Shipping = &request.ShippingAddress
+	product.PurchasedAt = time.Now().Format(time.RFC3339)
+
+	if err := saveAWSProduct(*product); err != nil {
+		http.Error(w, "Failed to complete purchase", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.ProductsApiResponse{
+		Status:  "success",
+		Message: "Purchase completed successfully",
+		Data:    product,
+	})
+}
+
 func generateSignedURL(s3Key string) (string, error) {
 	presignClient := s3.NewPresignClient(s3Client)
 	presignedReq, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
@@ -211,7 +299,7 @@ func validateToken(r *http.Request) error {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		return []byte(os.Getenv("JWT_KEY")), nil
+		return []byte(jwtSecret()), nil
 	})
 
 	if err != nil {
@@ -223,4 +311,94 @@ func validateToken(r *http.Request) error {
 	}
 
 	return nil
+}
+
+func validateShippingAddress(address models.ShippingAddress) error {
+	fields := map[string]string{
+		"street":       address.Street,
+		"city":         address.City,
+		"state":        address.State,
+		"postalCode":   address.PostalCode,
+		"country":      address.Country,
+		"countryCode":  address.CountryCode,
+		"mobileNumber": address.MobileNumber,
+	}
+
+	for name, value := range fields {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("%s is required", name)
+		}
+	}
+
+	return nil
+}
+
+func applySort(products *[]models.Product, sortField, sortOrder string) {
+	switch sortField {
+	case "name":
+		sort.Slice(*products, func(i, j int) bool {
+			left := strings.ToLower((*products)[i].Title)
+			right := strings.ToLower((*products)[j].Title)
+			if sortOrder == "desc" {
+				return left > right
+			}
+			return left < right
+		})
+	case "cost":
+		sort.Slice(*products, func(i, j int) bool {
+			left, _ := strconv.ParseFloat((*products)[i].Cost, 64)
+			right, _ := strconv.ParseFloat((*products)[j].Cost, 64)
+			if sortOrder == "desc" {
+				return left > right
+			}
+			return left < right
+		})
+	}
+}
+
+func fetchAWSProduct(productID string) (*models.Product, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(os.Getenv("AWS_REGION")))
+	if err != nil {
+		return nil, err
+	}
+	svc := dynamodb.NewFromConfig(cfg)
+
+	out, err := svc.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		TableName: aws.String("Products"),
+		Key: map[string]types.AttributeValue{
+			"ProductID": &types.AttributeValueMemberS{Value: productID},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if out.Item == nil {
+		return nil, errors.New("product not found")
+	}
+
+	var product models.Product
+	if err := attributevalue.UnmarshalMap(out.Item, &product); err != nil {
+		return nil, err
+	}
+
+	return &product, nil
+}
+
+func saveAWSProduct(product models.Product) error {
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(os.Getenv("AWS_REGION")))
+	if err != nil {
+		return err
+	}
+	svc := dynamodb.NewFromConfig(cfg)
+
+	av, err := attributevalue.MarshalMap(product)
+	if err != nil {
+		return err
+	}
+
+	_, err = svc.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		TableName: aws.String("Products"),
+		Item:      av,
+	})
+	return err
 }

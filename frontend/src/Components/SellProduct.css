@@ -1,92 +1,102 @@
 .sell-product-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    margin-top: 50px; /* Adjust as needed for vertical alignment */
-  }
-  
-  .sell-header {
-    margin-bottom: 30px; /* Increased space between header and form */
-  }
-  
-  .sell-form {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    max-width: 400px; /* Adjust the width as needed */
-    align-items: center; /* Add this line to ensure alignment */
-  }
-  
-  .sell-form input[type="text"],
-  .sell-form input[type="file"],
-  .sell-form textarea {
-    width: calc(100% - 20px); /* Adjust width to account for padding */
-    margin-bottom: 10px;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    box-sizing: border-box; /* Ensure padding doesn't affect width */
-  }
-  
-  .sell-form textarea {
-    width: 75%;
-    height: 80px; /* Or any other height as needed */
-    resize: none; /* Optional: prevent resizing */
-  }
-  
-  .sell-form button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    width: calc(100% - 40px); /* Match input width accounting for padding */
-    box-sizing: border-box; /* Ensure padding doesn't affect width */
-    margin-top: 10px; /* Consistent spacing above the button */
-  }
-  
-  .sell-form button:hover {
-    background-color: #0056b3;
-  }
-  
-  .top-nav {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    position: absolute;
-    top: 0;
-    right: 0;
-    padding: 10px;
-  }
-  
-  .nav-link{
-    margin-left: 10px;
-    text-decoration: none;
-    /* color: #007bff; */
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem; 
-    color: black;
-    padding: 10px 60px;
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 36px 0 64px;
+}
+
+.sell-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.sell-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--brand);
+  margin-bottom: 10px;
+}
+
+.sell-subcopy {
+  max-width: 42rem;
+  margin-top: 10px;
+}
+
+.top-nav {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.sell-layout {
+  display: grid;
+  grid-template-columns: 0.6fr 1fr;
+  gap: 20px;
+}
+
+.sell-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.aside-card,
+.sell-form {
+  background: var(--surface);
+  border-radius: 28px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(14px);
+}
+
+.aside-card {
+  padding: 24px;
+}
+
+.aside-card h3 {
+  margin-bottom: 10px;
+}
+
+.sell-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+}
+
+.sell-form textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+@media (max-width: 960px) {
+  .sell-header,
+  .sell-layout {
+    grid-template-columns: 1fr;
+    display: grid;
   }
 
-  .logout-button {
-    margin-left: 10px;
-    text-decoration: none;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem; 
-    color: white;
-    background-color: #dc3545;
-    padding: 5px 10px;
-    border-radius: 5px;/* You can adjust the font size as needed */
+  .top-nav {
+    justify-content: flex-start;
   }
-  
-  .logout-button:hover {
-    background-color: #c82333;
+}
+
+@media (max-width: 640px) {
+  .sell-product-container {
+    width: min(100% - 20px, 1200px);
+    padding-top: 20px;
   }
+
+  .aside-card,
+  .sell-form {
+    border-radius: 22px;
+    padding: 20px;
+  }
+
+  .top-nav {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

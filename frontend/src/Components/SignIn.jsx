@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '../config';
 
-const endpoint ="http://localhost:8080"
 function SignInForm({ onToggle }) {
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -10,16 +10,18 @@ function SignInForm({ onToggle }) {
       setError('');
       const { emailOrPhone, password } = event.target.elements;
       try {
-        const response = await fetch(endpoint + '/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            emailOrPhone: emailOrPhone.value,
-            password: password.value,
-          }),
-        });
+        const response = await fetch(apiUrl('/login'), 
+          {
+            method: 'POST',
+            headers: 
+            {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              emailOrPhone: emailOrPhone.value,
+              password: password.value,
+            }),
+          });
   
         if (!response.ok) {
           // throw new Error(`HTTP error! status: ${response.status}`);

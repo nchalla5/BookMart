@@ -23,16 +23,18 @@ type UserDetails struct {
 }
 
 type Product struct {
-	ProductID   string `json:"productId"` // Add this line
-	Product     string `json:"product"`
-	Image       string `json:"image,omitempty"`
-	Title       string `json:"title"`
-	Cost        string `json:"cost"`
-	Location    string `json:"location"`
-	Description string `json:"description"`
-	Status      string `json:"status,omitempty"`
-	Seller      string `json:"seller,omitempty"`
-	Buyer       string `json:"buyer,omitempty"`
+	ProductID   string           `json:"productId"` // Add this line
+	Product     string           `json:"product"`
+	Image       string           `json:"image,omitempty"`
+	Title       string           `json:"title"`
+	Cost        string           `json:"cost"`
+	Location    string           `json:"location"`
+	Description string           `json:"description"`
+	Status      string           `json:"status,omitempty"`
+	Seller      string           `json:"seller,omitempty"`
+	Buyer       string           `json:"buyer,omitempty"`
+	Shipping    *ShippingAddress `json:"shippingAddress,omitempty"`
+	PurchasedAt string           `json:"purchasedAt,omitempty"`
 }
 
 type ProductsApiResponse struct {
@@ -40,4 +42,18 @@ type ProductsApiResponse struct {
 	Message string      `json:"message,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
+}
+
+type ShippingAddress struct {
+	Street       string `json:"street"`
+	City         string `json:"city"`
+	State        string `json:"state"`
+	PostalCode   string `json:"postalCode"`
+	Country      string `json:"country"`
+	CountryCode  string `json:"countryCode"`
+	MobileNumber string `json:"mobileNumber"`
+}
+
+type PurchaseRequest struct {
+	ShippingAddress ShippingAddress `json:"shippingAddress"`
 }

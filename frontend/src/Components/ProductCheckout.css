@@ -1,41 +1,97 @@
+.check-page {
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 36px 0 64px;
+}
+
+.check-container {
+  display: grid;
+  grid-template-columns: 0.42fr 0.9fr 0.82fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.check-summary,
+.check-form,
+.check-card {
+  background: var(--surface);
+  border-radius: 28px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(14px);
+}
+
+.check-summary,
+.check-form,
+.check-card {
+  padding: 24px;
+}
+
+.check-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--brand);
+  margin-bottom: 10px;
+}
+
+.check-summary h2 {
+  margin-bottom: 12px;
+}
+
 .check-form {
-    flex: 1; /* Allow the form to grow */
-    max-width: 30%; /* Adjusted max width for the form */
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start; /* Align children (form fields) to the start of the flex container */
-    padding: 5rem;
-  }
-  
-  /* Add styles specifically for the button to ensure it aligns with form fields */
-  .check-form button {
-    padding: 10px 15px; /* Provide some padding */
-    cursor: pointer; /* Pointer cursor on hover */
-    border: none;
-    background-color: #007bff; /* Example button color */
-    color: white; /* Text color for the button */
-    border-radius: 4px; /* Rounded corners */
-    width: 100%; /* Full width to match input fields */
-    box-sizing: border-box; /* Include padding and border in the width */
-  }
-  
-  .check-card {
-    flex: 0 1 40%;
-    max-width: 50%;
-    margin-top: 4rem;
-    /* Rest of your styles */
-  }
-  
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.check-form h3 {
+  margin-bottom: 6px;
+}
+
+.check-card {
+  overflow: hidden;
+}
+
+.check-image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 18px;
+  background: rgba(231, 215, 191, 0.55);
+}
+
+.check-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 18px;
+}
+
+.check-name {
+  font-size: 1.6rem;
+}
+
+.check-cost {
+  color: var(--brand-deep);
+  font-size: 1.3rem;
+}
+
+@media (max-width: 1080px) {
   .check-container {
-    display: flex;
-    justify-content: space-evenly;
-    align-items: flex-start;
+    grid-template-columns: 1fr;
   }
-  
-  .check-image {
-    width: 500px;
-    height: 300px; 
-    object-fit: contain;
-    overflow: hidden; 
-    display: block;
+}
+
+@media (max-width: 640px) {
+  .check-page {
+    width: min(100% - 20px, 1200px);
+    padding-top: 20px;
   }
+
+  .check-summary,
+  .check-form,
+  .check-card {
+    border-radius: 22px;
+    padding: 20px;
+  }
+}

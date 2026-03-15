@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 // import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { apiUrl } from '../config';
 
-const endpoint ="http://localhost:8080"
 function SignUpForm({ onToggle }) {
     const [error, setError] = useState('');
     // const navigate = useNavigate();
@@ -22,10 +22,10 @@ function SignUpForm({ onToggle }) {
         // Set error message if terms are not accepted
         setError('You must accept the terms and conditions.');
         return;
-    }
+      }
   
       try {
-        const response = await fetch(endpoint + '/signup', {
+        const response = await fetch(apiUrl('/signup'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -3,10 +3,7 @@ import { useParams } from 'react-router-dom';
 import './ProductDetails.css';
 import { useNavigate, Link } from 'react-router-dom';
 import Swal from 'sweetalert2';
-
-const endpoint = "http://localhost:8080";
-
-
+import { apiUrl, resolveImageUrl } from '../config';
 
 function ProductDetails() {
   const [productDetails, setProductDetails] = useState(null);
@@ -23,7 +20,7 @@ function ProductDetails() {
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
-        const response = await fetch(`${endpoint}/product/${id}`, {
+        const response = await fetch(apiUrl(`/product/${id}`), {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -63,7 +60,7 @@ function ProductDetails() {
     }
 
     fetchProductDetails();
-  }, [id]); // Only re-run the effect if the ID changes
+  }, [id, navigate, token]); // Only re-run the effect if the ID changes
 
   if (!productDetails) {
     return <div>Loading...</div>; // Loading state
@@ -72,21 +69,35 @@ function ProductDetails() {
   // Render the product details
   return (
     <div className="product-details-page">
-    <h1 className="product-title">{productDetails.title}</h1> {/* Title at the top */}
-    <div className="top-nav">
-        <Link to="/home" className="nav-link">Home</Link>
-    </div>
-    <div className="product-content"> {/* Flex container for image and details */}
-      <img src={productDetails.image} alt={productDetails.title} className="product-image" />
-      <div className="product-info">
-        <p className="product-cost">${productDetails.cost}</p>
-        <p className="product-location">{productDetails.location}</p>
-        <p className="product-description">{productDetails.description}</p>
-        {/* Include Buy button or other details as needed */}
-        <button className="buy-button" onClick={() => handleBuyClick(productDetails.productId)}>Buy</button>
+      <div className="detail-topbar">
+        <Link to="/home" className="nav-link">Back to marketplace</Link>
+      </div>
+      <div className="product-content">
+        <div className="product-visual">
+          <img src={resolveImageUrl(productDetails.image)} alt={productDetails.title} className="product-image" />
+        </div>
+        <div className="product-info">
+          <span className={`detail-status-pill ${productDetails.status === 'sold' ? 'sold' : 'available'}`}>
+            {productDetails.status || 'available'}
+          </span>
+          <h1 className="product-title">{productDetails.title}</h1>
+          <p className="product-cost">${productDetails.cost}</p>
+          <p className="product-location">Pickup in {productDetails.location}</p>
+          <p className="product-description">{productDetails.description}</p>
+          <div className="detail-meta">
+            <span>Seller: {productDetails.seller || 'Book Mart member'}</span>
+            {productDetails.buyer && <span>Purchased by: {productDetails.buyer}</span>}
+          </div>
+          <button
+            className="buy-button"
+            onClick={() => handleBuyClick(productDetails.productId)}
+            disabled={productDetails.status && productDetails.status !== 'available'}
+          >
+            {productDetails.status === 'sold' ? 'Already sold' : 'Continue to checkout'}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
   );
 }
 
